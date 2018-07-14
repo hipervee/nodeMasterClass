@@ -1,10 +1,11 @@
 var http = require('http');
 var url = require('url');
 var StringDecoder = require('string_decoder').StringDecoder;
-var config = require('./config');
+var config = require('./lib/config');
 var https = require('https');
 var fs = require('fs');
-
+var handlers = require('./lib/handlers');
+var helpers = require('./lib/helpers')
 //Instantiate HTTP Server
 var httpServer = http.createServer((req, res) => {
     unifiedServer(req, res);
@@ -30,29 +31,12 @@ httpsServer.listen(config.httpsPort, () => {
     console.log('LISTENING ON PORT: ', config.httpsPort);
 });
 
-//Define the handlers
-var handlers = {};
-
-handlers.sample = (data, callback) => {
-    //callback a http status code, and a payload which should be an object
-    callback(406, {
-        'name': 'my name is sample handler'
-    });
-};
-
-handlers.notFound = (data, callback) => {
-    callback(404);
-};
-
-handlers.ping = (data, callback) => {
-    callback(200);
-};
-
 //Denfine a request router
 var router = {
     'ping': handlers.ping,
     'sample': handlers.sample,
-    'notFound': handlers.notFound
+    'notFound': handlers.notFound,
+    'users': handlers.users
 };
 
 
@@ -66,7 +50,7 @@ var unifiedServer = (req, res) => {
     var trimmedPath = path.replace(/^\/+|\/+$/g, '');
 
     // Get the HTTP Method
-    var method = req.method;
+    var method = req.method.toLowerCase();
 
     //Get the query string
     var queryStringObject = parsedUrl.query;
@@ -90,13 +74,15 @@ var unifiedServer = (req, res) => {
             queryStringObject: queryStringObject,
             method: method,
             headers: req.headers,
-            payload: buffer
+            payload: helpers.parseJsonToObject(buffer)
         };
 
         choosenHandler(data, (statusCode, payload) => {
             //use the status code called by the handler or default to 200
             statusCode = typeof (statusCode) == 'number' ? statusCode : 200;
-            payload = typeof (payload) == 'object' ? payload : {};
+            payload = typeof (payload) == 'object' ? payload : {
+                resp: payload
+            };
 
             //convert the payload to a string
             res.setHeader('Content-Type', 'application/json');
