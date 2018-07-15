@@ -22,6 +22,23 @@ helpers.parseJsonToObject = (payload) => {
     }
 };
 
+//Create random string of alpha characters
+helpers.createRandomString = (strLength) => {
+    strLength = typeof (strLength) == 'number' && strLength > 0 ? strLength : false;
+    if (strLength) {
+        var possibleChars = 'qwertyuiopasdfghjklzxcvbnm0123456789';
+        var str = '';
+        for (var i = 0; i < strLength; i++) {
+            var randomChar = possibleChars.charAt(Math.floor(Math.random() * possibleChars.length));
+            str += randomChar;
+        }
+        return str;
+    } else {
+        return false;
+    }
+};
+
+
 
 
 module.exports = helpers;

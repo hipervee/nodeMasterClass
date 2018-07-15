@@ -36,7 +36,8 @@ var router = {
     'ping': handlers.ping,
     'sample': handlers.sample,
     'notFound': handlers.notFound,
-    'users': handlers.users
+    'users': handlers.users,
+    'tokens': handlers.tokens
 };
 
 
