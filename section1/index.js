@@ -37,7 +37,8 @@ var router = {
     'sample': handlers.sample,
     'notFound': handlers.notFound,
     'users': handlers.users,
-    'tokens': handlers.tokens
+    'tokens': handlers.tokens,
+    'checks': handlers.checks
 };
 
 

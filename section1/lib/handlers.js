@@ -1,6 +1,7 @@
 // Dependencies
 var _data = require('./data');
 var helpers = require('./helpers');
+var config = require('./config');
 
 //Define the handlers
 var handlers = {};
@@ -33,6 +34,15 @@ handlers.tokens = (data, callback) => {
     var acceptableMethods = ['post', 'get', 'put', 'delete'];
     if (acceptableMethods.indexOf(data.method) > -1) {
         handlers._tokens[data.method](data, callback);
+    } else {
+        callback(405);
+    }
+};
+
+handlers.checks = (data, callback) => {
+    var acceptableMethods = ['post', 'get', 'put', 'delete'];
+    if (acceptableMethods.indexOf(data.method) > -1) {
+        handlers._checks[data.method](data, callback);
     } else {
         callback(405);
     }
@@ -375,6 +385,89 @@ handlers._tokens.verifyToken = (id, phone, callback) => {
             callback(false);
         }
     });
+};
+
+handlers._checks = {};
+
+//checks: post
+//Required Fields: protocol, url, method, successCodes, timeoutINseconds
+//optional data: none
+handlers._checks.post = (data, callback) => {
+    //validate inputs
+    //check all required fields are filled out
+    var protocol = typeof (data.payload.protocol) == 'string' && ['http', 'https'].indexOf(data.payload.protocol) > -1 ? data.payload.protocol : false;
+    var url = typeof (data.payload.url) == 'string' && data.payload.url.trim().length > 0 ? data.payload.url.trim() : false;
+    var method = typeof (data.payload.method) == 'string' && ['post', 'get', 'put', 'delete'].indexOf(data.payload.method) > -1 ? data.payload.method : false;
+    var successCodes = typeof (data.payload.successCodes) == 'object' && data.payload.successCodes instanceof Array && data.payload.successCodes.length ? data.payload.successCodes : false;
+    var timeoutSeconds = typeof (data.payload.timeoutSeconds) == 'number' && data.payload.timeoutSeconds % 1 === 0 && data.payload.timeoutSeconds > 0 && data.payload.timeoutSeconds < 6 ? data.payload.timeoutSeconds : false;
+
+    if (protocol && url && method && successCodes && timeoutSeconds) {
+        var token = typeof (data.headers.token == 'string') ? data.headers.token : false;
+        //Lookup the user by reading the token
+        _data.read('tokens', token, (err, tokenData) => {
+            if (!err && tokenData) {
+                var userPhone = tokenData.phone;
+                _data.read('users', userPhone, (err, userData) => {
+                    if (!err && userData) {
+                        var userChecks = typeof (userData.checks) == 'object' && userData.checks instanceof Array ? userData.checks : [];
+                        //verify user has less number of checks than max-checks allowed in config
+                        if (userChecks.length < config.maxChecks) {
+                            //create a random id for the check
+                            var checkId = helpers.createRandomString(20);
+                            var checkObject = {
+                                id: checkId,
+                                phone: userPhone,
+                                protocol: protocol,
+                                url: url,
+                                method: method,
+                                successCodes: successCodes,
+                                timeoutSeconds: timeoutSeconds
+                            };
+
+                            _data.create('checks', checkId, checkObject, (err) => {
+                                if (!err) {
+                                    //add the check id to the users Object
+                                    userData.checks = userChecks;
+                                    userData.checks.push(checkId);
+
+                                    _data.update('users', userPhone, userData, (err) => {
+                                        if (!err)
+                                            callback(201, checkObject)
+                                        else
+                                            callback(500, {
+                                                error: 'could not update the user with new check'
+                                            });
+                                    });
+                                } else {
+                                    callback(500, {
+                                        error: 'unable to create check object'
+                                    });
+                                }
+                            });
+
+                        } else {
+                            callback(400, {
+                                error: 'exceeded checks limit'
+                            });
+                        }
+                    } else {
+                        callback(500, {
+                            error: 'unable to read user data'
+                        });
+                    }
+                });
+            } else {
+                callback(500, {
+                    error: 'unable to read token'
+                });
+            }
+        });
+
+    } else {
+        callback(400, {
+            error: 'missing/invalid required inputs'
+        });
+    }
 };
 
 module.exports = handlers;
