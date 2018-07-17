@@ -93,5 +93,17 @@ lib.delete = (dir, file, callback) => {
     });
 };
 
+//List all the items in  a directory
+lib.list = (dir, callback) => {
+    fs.readdir(lib.baseDir + dir + '/', (err, data) => {
+        if (!err && data && data.length) {
+            var trimmedFileNames = [];
+            data.forEach(fileName => {
+                trimmedFileNames.push(fileName.replace('.json', ''));
+            });
+            callback(false, trimmedFileNames);
+        } else callback(err, data);
+    });
+};
 
 module.exports = lib;
