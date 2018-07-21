@@ -11,6 +11,8 @@ var fs = require('fs');
 var handlers = require('./handlers');
 var helpers = require('./helpers')
 var path = require('path');
+var util = require('util');
+var debug = console.log;//util.debuglog('server');
 
 //instantiare server module object
 
@@ -33,19 +35,15 @@ server.httpServer = http.createServer((req, res) => {
 
 server.init = () => {
     server.httpServer.listen(config.httpPort, () => {
-        console.log('ENVIRONMENT: ', config.envName);
-        console.log('LISTENING ON PORT: ', config.httpPort);
+        let msg = `ENVIRONMENT: ${config.envName} running on PORT: ${config.httpPort}`;
+        console.log('\x1b[34m%s\x1b[0m', msg);
     });
 
     server.httpsServer.listen(config.httpsPort, () => {
-        console.log('ENVIRONMENT: ', config.envName);
-        console.log('LISTENING ON PORT: ', config.httpsPort);
+        let msg = `ENVIRONMENT: ${config.envName} running on PORT: ${config.httpsPort}`;
+        console.log('\x1b[34m%s\x1b[0m', msg);
     });
 };
-
-
-
-
 
 
 
@@ -86,9 +84,8 @@ server.unifiedServer = (req, res) => {
     req.on('end', () => {
         buffer += decoder.end();
         //choose the handler this request should go to
-        var choosenHandler = typeof (server.router[trimmedPath]) == 'undefined' ? router.notFound : server.router[trimmedPath];
-        console.log('TYPE ', typeof (choosenHandler));
-
+        debug('Trimmed Path', trimmedPath);
+        var choosenHandler = typeof (server.router[trimmedPath]) == 'undefined' ? server.router.notFound : server.router[trimmedPath];
         var data = {
             trimmedPath: trimmedPath,
             queryStringObject: queryStringObject,
@@ -109,7 +106,13 @@ server.unifiedServer = (req, res) => {
             var payloadString = JSON.stringify(payload);
             res.writeHead(statusCode);
             res.end(payloadString);
-            console.log('RETURNING', statusCode, payload);
+
+            let msg = `${method.toUpperCase()} /${trimmedPath} ${statusCode}`;
+            if ([200, 201].indexOf(statusCode) > -1) {
+                debug('\x1b[32m%s\x1b[0m', msg);
+            } else {
+                debug('\x1b[31m%s\x1b[0m', msg);
+            }
         });
     });
 };

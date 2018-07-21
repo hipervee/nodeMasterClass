@@ -10,6 +10,8 @@ var http = require('http');
 var helpers = require('./helpers');
 var url = require('url');
 var _logs = require('./log');
+var util = require('util');
+var debug = console.log;//util.debuglog('workers');
 
 var workers = {};
 
@@ -32,12 +34,12 @@ workers.gatherAllChecks = () => {
                         //pass it to the check validater and let that function continue of log error
                         workers.validateCheckData(originalCheckData);
                     } else {
-                        console.log('Error: reading one of the checks data: ' + check);
+                        debug('Error: reading one of the checks data: ' + check);
                     }
                 });
             });
         } else {
-            console.log('Error: Could not find any checks to process');
+            debug('Error: Could not find any checks to process');
         }
     });
 };
@@ -69,7 +71,7 @@ workers.validateCheckData = (originalCheckData) => {
         //Perform the check
         workers.performCheck(originalCheckData);
     } else {
-        console.log(`ID: ${originalCheckData.id}: one of the checks is not properly formatted so skipping it`);
+        debug(`ID: ${originalCheckData.id}: one of the checks is not properly formatted so skipping it`);
     }
 };
 
@@ -168,10 +170,10 @@ workers.processCheckOutcome = (originalCheckData, checkOutcome) => {
             if (alertWanted) {
                 workers.alertUserToStatusChange(newCheckData);
             } else {
-                console.log('Check outcome has not changed, no alert needed');
+                debug('Check outcome has not changed, no alert needed');
             }
         } else {
-            console.log('Error trying to updates to one of the checks');
+            debug('Error trying to updates to one of the checks');
         }
     });
 
@@ -181,9 +183,9 @@ workers.alertUserToStatusChange = (newCheckData) => {
     var msg = 'Alert: Your check for ' + `${newCheckData.method.toUpperCase()} ${newCheckData.protocol}://${newCheckData.url} is ${newCheckData.state}`;
     helpers.sendTwilioSms(newCheckData.phone, msg, (err) => {
         if (!err) {
-            console.log('User was alerted for status change in their check');
+            debug('User was alerted for status change in their check');
         } else {
-            console.log('Could not send sms to the user regarding status check');
+            debug('Could not send sms to the user regarding status check');
         }
     });
 };
@@ -203,9 +205,9 @@ workers.log = (originalCheckData, checkOutcome, state, alertWanted, timeOfCheck)
 
     _logs.append(logFileName, logString, (err) => {
         if (!err) {
-            console.log('Logging to file succeeded');
+            debug('Logging to file succeeded');
         } else {
-            console.log('Error: Logging to file failed');
+            debug('Error: Logging to file failed');
         }
     });
 
@@ -215,7 +217,6 @@ workers.rotateLogs = () => {
     //List the uncompressed files
     _logs.list(false, (err, logs) => {
         if (!err && logs && logs.length) {
-            console.log('DEBUG', logs);
             logs.forEach(logFileName => {
                 //compress the data to different file
                 var logId = logFileName.replace('.log', '');
@@ -226,18 +227,18 @@ workers.rotateLogs = () => {
                         //truncate the log - original log file
                         _logs.truncate(logId, (err) => {
                             if (!err) {
-                                console.log('Success Compressing Log File');
+                                debug('Success Compressing Log File');
                             } else {
-                                console.log('Error: truncating log file');
+                                debug('Error: truncating log file');
                             }
                         });
                     } else {
-                        console.log('Error: Compresing one of the log files');
+                        debug('Error: Compresing one of the log files');
                     }
                 });
             });
         } else {
-            console.log('Error: Could not find any logs to rotate');
+            debug('Error: Could not find any logs to rotate');
         }
     });
 };
@@ -251,17 +252,20 @@ workers.logRotationLoop = () => {
 
 //Init script
 workers.init = () => {
+    //Send to console in yellow
+    console.log('\x1b[33m%s\x1b[0m', 'Background workers are running');    
+
     // Execute all the check
-    workers.gatherAllChecks();
+    //workers.gatherAllChecks();
 
     //Call the loop so that checks keep executing on their own
-    workers.loop();
+    //workers.loop();
 
     //Compress all the logs immeditely
-    workers.rotateLogs();
+    //workers.rotateLogs();
 
     //Call the compression loop so logs will be rotated
-    workers.logRotationLoop();
+    //workers.logRotationLoop();
 };
 
 
